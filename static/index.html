@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>知返 · 智能体策略演进演示</title>
+  <link rel="stylesheet" href="/static/style.css?v=10" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">◎</span><span>知返</span><span class="tag">智能体策略演进演示</span></div>
+    <nav class="tabs">
+      <button class="tab active" data-tab="chat">咨询台</button>
+      <button class="tab" data-tab="review">策略工作台</button>
+    </nav>
+  </header>
+
+  <!-- 指标看板 -->
+  <section class="metrics" id="metrics">
+    <div class="metric clickable" id="m-taught-card" title="主动录入和工单补录的策略">
+      <span class="m-num" id="m-taught">-</span><span class="m-label">策略样本</span></div>
+    <div class="metric clickable" id="m-refine-card" title="对话里纠正并确认写入的策略">
+      <span class="m-num" id="m-refine">-</span><span class="m-label">纠偏固化</span></div>
+    <div class="metric"><span class="m-num" id="m-chats">-</span><span class="m-label">咨询总数</span></div>
+    <div class="metric"><span class="m-num" id="m-handoff">-</span><span class="m-label">转人工率</span></div>
+    <div class="metric"><span class="m-num" id="m-hit">-</span><span class="m-label">策略命中率</span></div>
+  </section>
+
+  <p class="demo-intro"><span class="status-dot"></span><strong>当前工作区</strong><span>运行一次咨询，观察 智能体 如何读取策略、调用工具并把反馈沉淀为下一次行为。</span></p>
+
+  <!-- 样本快速查看弹窗 -->
+  <div class="modal-mask" id="kb-modal">
+    <div class="modal">
+      <div class="modal-head">
+        <span id="kb-modal-title">策略样本</span>
+        <button class="modal-close" id="kb-close">✕</button>
+      </div>
+      <div class="modal-body" id="kb-list"></div>
+    </div>
+  </div>
+
+  <!-- 人工智能归纳的策略总纲弹窗(只读,派生自样本) -->
+  <div class="modal-mask" id="sum-modal">
+    <div class="modal">
+      <div class="modal-head">
+        <span>策略总纲 <span class="tag-mini">可改 · 重新归纳时保留你的改写，并补上新原则</span></span>
+        <button class="modal-close" id="sum-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <textarea class="summary-edit" id="sum-text" placeholder="加载中…"></textarea>
+        <div class="settings-actions">
+          <button id="sum-save" class="btn-ok">保存改写</button>
+          <button id="sum-regen" class="btn-brain">↻ 重新归纳(合并新样本)</button>
+          <span class="settings-hint" id="sum-status"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 完整系统提示词弹窗(只读) -->
+  <div class="modal-mask" id="prompt-modal">
+    <div class="modal">
+      <div class="modal-head">
+        <span>当前生效的系统提示词 <span class="tag-mini">办事顺序 + 铁律 + 策略总纲</span></span>
+        <button class="modal-close" id="prompt-close">✕</button>
+      </div>
+      <div class="modal-body"><pre class="prompt-text" id="prompt-text"></pre></div>
+    </div>
+  </div>
+
+  <main>
+    <!-- 对话页 -->
+    <section id="tab-chat" class="panel active">
+      <div class="chat-wrap">
+        <div class="chat-col">
+          <div class="mode-bar">
+            <label class="switch">
+              <input type="checkbox" id="teach-toggle" />
+              <span>策略录入</span>
+            </label>
+            <span class="mode-hint" id="mode-hint">模拟客户提问，观察 人工智能如何按策略判断。</span>
+          </div>
+
+          <div class="messages" id="messages"></div>
+
+          <!-- 客户咨询输入 -->
+          <div class="composer" id="ask-box">
+            <input id="input" type="text" placeholder="以客户身份提问,例如:这个课多少钱?" autocomplete="off" />
+            <button id="send">发送</button>
+            <button id="reset" class="ghost" title="清空当前会话上下文">重置</button>
+          </div>
+
+          <!-- 策略沉淀输入 -->
+          <div class="teach-box" id="teach-box">
+            <div class="teach-title">创建策略单元：输入模式、建议动作与判断依据</div>
+            <input id="t-question" type="text" placeholder="客户问题,例如:这个课多少钱?" autocomplete="off" />
+            <textarea id="t-answer" placeholder="建议回复或动作，例如：先了解基础和目标，再决定是否进入报价阶段…"></textarea>
+            <textarea id="t-note" placeholder="判断依据，例如：价格问题先确认意向，避免过早进入砍价…"></textarea>
+            <button id="teach-btn">保存策略</button>
+
+            <div class="taught-wrap">
+              <div class="taught-title">已沉淀的策略（<span id="taught-count">0</span>）· 不含纠偏固化</div>
+              <div class="taught-list" id="taught-list"></div>
+            </div>
+          </div>
+
+          <div class="quick" id="quick"></div>
+        </div>
+        <aside class="trace-col">
+          <div class="trace-title"><span>运行轨迹</span><span class="trace-live">● 运行中</span></div>
+          <div class="trace" id="trace"><div class="trace-empty">发一句咨询。这里会留下每一步：看了什么、调用了哪个工具、工具返回了什么。</div></div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- 后台页 -->
+    <section id="tab-review" class="panel">
+      <div class="review-actions">
+        <button id="summary-btn" class="btn-brain">策略总纲</button>
+        <button id="prompt-btn" class="btn-brain">运行提示词</button>
+      </div>
+
+      <!-- 人工智能 业务设定:全局人设/语气/铁律,改完即时生效 -->
+      <div class="settings-panel">
+        <div class="settings-title"><span class="section-kicker">控制面</span>业务规则 <span class="tag-mini">语气和硬规矩。保存后下一次咨询就生效，优先级高于总纲</span></div>
+        <textarea id="directive" placeholder="加载中…"></textarea>
+        <div class="settings-actions">
+          <button id="save-directive" class="btn-ok">保存设定</button>
+          <span class="settings-hint">承载"简洁、绝不直接报价、先确认意向再对接班主任"这类全局策略。</span>
+        </div>
+      </div>
+
+      <div class="review-wrap review-wrap-3">
+        <div class="review-col">
+          <h3><span class="section-kicker">待处理</span>待处理工单</h3>
+          <div id="tickets" class="cards"></div>
+        </div>
+        <div class="review-col">
+          <h3><span class="section-kicker">策略记忆</span>策略样本 <span class="tag-mini">主动录入 / 工单补录 · 可改可删</span></h3>
+          <div id="samples-taught" class="cards"></div>
+        </div>
+        <div class="review-col">
+          <h3><span class="section-kicker">反馈记录</span>纠偏记录 <span class="tag-mini">确认写入之后才在这里 · 可改可删</span></h3>
+          <div id="samples-refine" class="cards"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js?v=10"></script>
+</body>
+</html>
