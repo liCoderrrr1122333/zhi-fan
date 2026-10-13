@@ -41,7 +41,7 @@ def effective_system_prompt() -> str:
 
 
 _BASE_PROMPT = (
-            "你是一名 AI 课程咨询顾问。你的回答必须遵循策略库中的运行策略,而不是有问必直答"
+            "你是知返，一个面向咨询场景的智能体。你的回答必须遵循策略库中的运行策略,而不是有问必直答"
             "(例如客户问价格,策略可能要求先了解需求、塑造价值再报价)。\n\n"
             "可用工具:\n"
             "- recall_playbook:取回已沉淀的策略样本与判断理由(客户问题+标准答案+这么答的原因)。\n"
@@ -98,7 +98,7 @@ def reset_session(session_id: str = "demo") -> None:
 
 
 def refine_reply(question: str, reply: str, feedback: str, session_id: str = "demo") -> str:
-    """实测纠偏：人工对 AI 刚才这条回复提意见,AI 据此重答这一句(不写库,仅当场修正)。
+    """实测纠偏：人工对知返刚才这条回复提意见,知返据此重答这一句(不写库,仅当场修正)。
 
     重答会遵守当前系统提示词(含总纲/铁律),并把会话里最后一条 assistant 替换为修正版,
     使后续对话从修正后的语境继续。

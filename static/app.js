@@ -87,7 +87,7 @@ function addMessage(text, who, handoff) {
   $("#messages").scrollTop = $("#messages").scrollHeight;
 }
 
-// AI 回复(带「纠偏 / 固化」能力)。question=触发这条回复的客户问题。
+// 知返的回复(带「纠偏 / 固化」能力)。question=触发这条回复的客户问题。
 function addBotMessage(text, opts = {}) {
   const { handoff = false, question = null, revised = false, feedback = "" } = opts;
   const wrap = document.createElement("div");
@@ -338,7 +338,7 @@ $("#sum-save").addEventListener("click", async () => {
   setTimeout(() => ($("#sum-status").textContent = ""), 1500);
 });
 $("#sum-regen").addEventListener("click", async () => {
-  $("#sum-status").textContent = "AI 正在合并归纳(保留你的改写)……";
+  $("#sum-status").textContent = "知返正在合并归纳(保留你的改写)……";
   const r = await post("/api/playbook/summary/regenerate");
   $("#sum-text").value = r.summary || "";
   $("#sum-status").textContent = "已重新归纳 ✓";
@@ -361,7 +361,7 @@ $("#prompt-modal").addEventListener("click", (e) => {
   if (e.target.id === "prompt-modal") $("#prompt-modal").classList.remove("show");
 });
 
-// ---------- AI 业务设定 ----------
+// ---------- 知返业务设定 ----------
 async function loadDirective() {
   const r = await api("/api/settings/directive");
   $("#directive").value = r.directive || "";

@@ -40,7 +40,7 @@ class SampleUpdate(BaseModel):
 
 
 class DirectiveUpdate(BaseModel):
-    """更新 AI 业务设定(全局人设/语气/铁律)。"""
+    """更新知返业务设定(全局人设/语气/铁律)。"""
     text: str
 
 
@@ -50,7 +50,7 @@ class SummaryUpdate(BaseModel):
 
 
 class RefineRequest(BaseModel):
-    """实测纠偏:对某条 AI 回复给意见,让它据此重答。"""
+    """实测纠偏:对某条 知返的回复给意见,让它据此重答。"""
     question: str
     reply: str
     feedback: str

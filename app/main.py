@@ -1,4 +1,4 @@
-"""FastAPI 入口:课程咨询、策略沉淀(策略库)、工单、统计,以及前端静态页。"""
+"""FastAPI 入口:知返咨询、策略沉淀(策略库)、工单、统计,以及前端静态页。"""
 from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
@@ -12,7 +12,7 @@ from .models import (ChatRequest, ChatResponse, TeachRequest,
 from .services import (chat_service, review_service, playbook_service,
                        settings_service)
 
-app = FastAPI(title="AI 课程咨询顾问 · Agent Loop + 策略闭环演进")
+app = FastAPI(title="知返 · 智能体策略闭环演进")
 
 
 @app.on_event("startup")
@@ -44,7 +44,7 @@ def reset_session(session_id: str = "demo") -> dict:
 
 @app.post("/api/refine")
 def refine(req: RefineRequest) -> dict:
-    """据人工点评,把 AI 刚才这条回复当场重答一遍。"""
+    """据人工点评,把知返刚才这条回复当场重答一遍。"""
     revised = chat_service.refine_reply(req.question, req.reply, req.feedback, req.session_id)
     return {"reply": revised}
 
@@ -109,7 +109,7 @@ def teach_ticket(ticket_id: int, req: TicketTeachRequest) -> dict:
     return review_service.teach_from_ticket(ticket_id, req.answer, req.note)
 
 
-# ---------- AI 业务设定(全局人设/语气/铁律) ----------
+# ---------- 知返业务设定(全局人设/语气/铁律) ----------
 
 @app.get("/api/settings/directive")
 def get_directive() -> dict:
