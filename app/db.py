@@ -90,6 +90,22 @@ def init_db() -> None:
         )
         cur.execute(
             """
+            CREATE TABLE IF NOT EXISTS eval_runs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                status TEXT NOT NULL DEFAULT 'running',  -- running | done | abandoned
+                provider TEXT,
+                sample_count INTEGER NOT NULL DEFAULT 0,
+                sample_ids TEXT,
+                summary_excerpt TEXT,
+                passed INTEGER NOT NULL DEFAULT 0,
+                total INTEGER NOT NULL DEFAULT 0,
+                results_json TEXT NOT NULL DEFAULT '[]',
+                created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+            )
+            """
+        )
+        cur.execute(
+            """
             CREATE TABLE IF NOT EXISTS metrics_log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 session_id TEXT,

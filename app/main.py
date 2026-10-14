@@ -10,7 +10,7 @@ from .models import (ChatRequest, ChatResponse, TeachRequest,
                      TicketTeachRequest, SampleUpdate, DirectiveUpdate,
                      SummaryUpdate, RefineRequest, RefineCommitRequest)
 from .services import (chat_service, review_service, playbook_service,
-                       settings_service)
+                       settings_service, eval_service)
 
 app = FastAPI(title="知返 · 智能体策略闭环演进")
 
@@ -125,6 +125,23 @@ def put_directive(req: DirectiveUpdate) -> dict:
 def get_system_prompt() -> dict:
     """完整生效的系统提示词(技术流程 + 业务设定),供人工查看。"""
     return {"prompt": chat_service.effective_system_prompt()}
+
+
+# ---------- 评测：固定四题，和上一轮对比 ----------
+
+@app.get("/api/evals")
+def get_evals() -> dict:
+    return eval_service.overview()
+
+
+@app.post("/api/evals/runs")
+def start_eval_run() -> dict:
+    return eval_service.begin_run()
+
+
+@app.post("/api/evals/runs/{run_id}/cases/{case_id}")
+def run_eval_case(run_id: int, case_id: str) -> dict:
+    return eval_service.run_case(run_id, case_id)
 
 
 # ---------- 统计 ----------

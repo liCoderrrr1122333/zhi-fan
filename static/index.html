@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>知返 · 智能体策略演进演示</title>
-  <link rel="stylesheet" href="/static/style.css?v=10" />
+  <link rel="stylesheet" href="/static/style.css?v=11" />
 </head>
 <body>
   <header class="topbar">
@@ -115,6 +115,18 @@
 
     <!-- 后台页 -->
     <section id="tab-review" class="panel">
+      <div class="eval-panel" id="eval-panel">
+        <div class="eval-head">
+          <div>
+            <div class="settings-title"><span class="section-kicker">对照</span>策略有没有变好</div>
+            <p class="eval-lead" id="eval-headline">四道固定题。先跑一遍看当前策略，改完再跑，变好和被带坏都会标出来。</p>
+            <p class="eval-note" id="eval-note"></p>
+          </div>
+          <button id="eval-run" class="btn-ok" type="button">按当前策略跑一遍</button>
+        </div>
+        <div class="eval-grid" id="eval-grid"></div>
+      </div>
+
       <div class="review-actions">
         <button id="summary-btn" class="btn-brain">策略总纲</button>
         <button id="prompt-btn" class="btn-brain">运行提示词</button>
@@ -147,6 +159,6 @@
     </section>
   </main>
 
-  <script src="/static/app.js?v=10"></script>
+  <script src="/static/app.js?v=11"></script>
 </body>
 </html>

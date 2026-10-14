@@ -80,7 +80,8 @@ def handle_chat(message: str, session_id: str = "demo") -> LoopResult:
         or (m.get("role") == "assistant" and not m.get("tool_calls"))
     ]
 
-    _log_metrics(session_id, message, result)
+    if not str(session_id).startswith("eval:"):
+        _log_metrics(session_id, message, result)
     return result
 
 

@@ -122,6 +122,7 @@ function addBotMessage(text, opts = {}) {
         commitBtn.textContent = "正在保存…";
         await post("/api/refine/commit", { question, answer: text, feedback });
         commitBtn.textContent = "已保存";
+        sessionStorage.setItem("eval-dirty", "1");
         refreshMetrics();
         // 纠偏固化进「纠偏数据」,不刷新策略样本清单
       };
@@ -265,6 +266,7 @@ $("#teach-btn").addEventListener("click", async () => {
   const note = $("#t-note").value.trim();
   if (!question || !answer) return alert("请至少填写「客户问题」和「标准答案」");
   await post("/api/teach", { question, answer, note });
+  sessionStorage.setItem("eval-dirty", "1");
   addMessage(`已保存策略：「${question}」`, "bot");
   $("#t-question").value = ""; $("#t-answer").value = ""; $("#t-note").value = "";
   refreshMetrics();
@@ -369,6 +371,7 @@ async function loadDirective() {
 $("#save-directive").addEventListener("click", async () => {
   const btn = $("#save-directive");
   await put("/api/settings/directive", { text: $("#directive").value });
+  sessionStorage.setItem("eval-dirty", "1");
   const old = btn.textContent;
   btn.textContent = "已保存 ✓";
   setTimeout(() => (btn.textContent = old), 1500);
@@ -397,6 +400,7 @@ function renderSampleCard(s, onChanged) {
     });
     save.disabled = false;
     if (res && res.ok) {
+      sessionStorage.setItem("eval-dirty", "1");
       save.textContent = "已保存 ✓";
       setTimeout(() => { save.textContent = "保存修改"; }, 1500);
     } else {
@@ -405,6 +409,7 @@ function renderSampleCard(s, onChanged) {
   };
   remove.onclick = async () => {
     if (!confirm("确定删除这条样本?")) return;
+    sessionStorage.setItem("eval-dirty", "1");
     await del(`/api/playbook/${s.id}`);
     onChanged();
   };
@@ -413,6 +418,7 @@ function renderSampleCard(s, onChanged) {
 
 async function loadReview() {
   loadDirective();
+  loadEval();
   // 工单
   const tickets = await api("/api/tickets?status=open");
   const tbox = $("#tickets");
@@ -430,6 +436,7 @@ async function loadReview() {
     c.querySelector("button").onclick = async () => {
       if (!ans.value.trim()) return alert("请先填写标准答案");
       await post(`/api/tickets/${t.id}/teach`, { answer: ans.value.trim(), note: note.value.trim() });
+      sessionStorage.setItem("eval-dirty", "1");
       loadReview(); refreshMetrics();
     };
     tbox.appendChild(c);
@@ -451,5 +458,99 @@ async function loadReview() {
     loadReview(); refreshMetrics();
   })));
 }
+
+const DELTA_TEXT = {
+  improved: "变好了",
+  regressed: "退步了",
+  held: "仍然通过",
+  still: "还是没过",
+  new: "本轮结果",
+};
+
+function evalCard(item) {
+  const delta = item.delta || "";
+  const checks = (item.checks || []).map((c) =>
+    `<li class="${c.ok ? "ok" : "bad"}">${c.ok ? "通过" : "未过"} · ${escapeHtml(c.label)}</li>`
+  ).join("");
+  const reply = item.reply
+    ? `<div class="eval-reply">${escapeHtml(item.reply)}</div>`
+    : `<div class="eval-expect">还没跑。</div>`;
+  const tools = (item.tools || []).length
+    ? `<div class="eval-tools">调用了 ${escapeHtml(item.tools.join("、"))}</div>`
+    : "";
+  return `<article class="eval-card ${delta}">
+    <div class="eval-card-top">
+      <span class="eval-short">${escapeHtml(item.short)}${item.role === "control" ? " · 控制题" : ""}</span>
+      <span class="eval-delta ${delta}">${DELTA_TEXT[delta] || ""}</span>
+    </div>
+    <div class="eval-q">${escapeHtml(item.question)}</div>
+    <div class="eval-expect">期望：${escapeHtml(item.expect)}</div>
+    ${reply}
+    ${tools}
+    ${checks ? `<ul class="eval-checks">${checks}</ul>` : ""}
+  </article>`;
+}
+
+function paintEval(cases, byId) {
+  $("#eval-grid").innerHTML = cases.map((c) => evalCard(byId[c.id] || c)).join("");
+}
+
+async function loadEval() {
+  const data = await api("/api/evals");
+  const cases = data.cases || [];
+  const dirty = sessionStorage.getItem("eval-dirty") === "1";
+  $("#eval-headline").textContent = (dirty ? "策略刚更新过。" : "") + (data.headline || "");
+  const latest = data.latest;
+  const meta = latest
+    ? `上次结果 ${latest.passed}/${latest.total}，当时策略 ${latest.sample_count} 条。`
+    : "";
+  $("#eval-note").textContent = [data.provider_note, meta].filter(Boolean).join(" ");
+  const byId = {};
+  ((latest && latest.results) || []).forEach((r) => { byId[r.id] = r; });
+  paintEval(cases, byId);
+  if (latest) $("#eval-run").textContent = "按当前策略再跑一遍";
+}
+
+async function runEval() {
+  const btn = $("#eval-run");
+  btn.disabled = true;
+  const original = btn.textContent;
+  sessionStorage.removeItem("eval-dirty");
+  const started = await post("/api/evals/runs");
+  if (!started || !started.id) {
+    btn.disabled = false;
+    $("#eval-headline").textContent = "评测没有开始，请再试一次。";
+    return;
+  }
+  const cases = started.cases || [];
+  $("#eval-note").textContent = started.provider_note || "";
+  paintEval(cases, {});
+  let last = null;
+  for (let i = 0; i < cases.length; i++) {
+    const c = cases[i];
+    $("#eval-headline").textContent = `正在问：${c.question}`;
+    const node = $("#eval-grid").children[i];
+    if (node) node.querySelector(".eval-delta").textContent = "正在问…";
+    last = await post(`/api/evals/runs/${started.id}/cases/${c.id}`);
+    if (!last || last.ok === false) {
+      $("#eval-headline").textContent = (last && last.error) || "这一题没有跑完。";
+      btn.disabled = false;
+      btn.textContent = original;
+      return;
+    }
+    const holder = document.createElement("div");
+    holder.innerHTML = evalCard(last.result);
+    $("#eval-grid").children[i].replaceWith(holder.firstElementChild);
+  }
+  if (last && last.headline) $("#eval-headline").textContent = last.headline;
+  if (last && last.finished) {
+    const excerpt = last.summary_excerpt ? `总纲：${last.summary_excerpt}` : "";
+    $("#eval-note").textContent = [started.provider_note, `这次对照 ${last.sample_count} 条策略。`, excerpt].filter(Boolean).join(" ");
+  }
+  btn.disabled = false;
+  btn.textContent = "按当前策略再跑一遍";
+}
+
+$("#eval-run").addEventListener("click", runEval);
 
 refreshMetrics();
