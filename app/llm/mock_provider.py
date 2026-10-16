@@ -13,8 +13,8 @@ from .base import LLMProvider, LLMDecision, ToolCall
 
 # 各类意图的关键词
 _HANDOFF_RE = re.compile(r"(转人工|人工客服|真人|人工)")
-_FACT_RE = re.compile(r"(价格|多少钱|学费|贵|便宜|周期|多久|大纲|课程内容|上课|方式|适合)")
-_CASE_RE = re.compile(r"(案例|案例对象|谁学过|就业|找到工作|入职|薪资|offer)")
+_FACT_RE = re.compile(r"(价格|多少钱|贵|便宜|周期|多久|几天|质保|项目|贴膜|改色|车衣|轮毂)")
+_CASE_RE = re.compile(r"(案例|车主|客户|谁做过|效果|贴过|改过)")
 
 
 def _call(name: str, tool_input: dict[str, Any], thought: str) -> LLMDecision:
@@ -67,24 +67,24 @@ class MockLLMProvider(LLMProvider):
 
         pb = done.get("recall_playbook") or {}
 
-        # 1.1 策略库为空 —— 还没教过任何东西,转人工
+        # 1.1 策略库为空 —— 还没有策略样本,转人工
         if not pb.get("count"):
             if "handoff" not in done:
                 return _call("handoff",
-                             {"question": question, "context": "策略库为空,尚未教过任何内容。"},
+                             {"question": question, "context": "策略库为空,还没有任何策略样本。"},
                              "策略库还是空的,我没有把握,转人工。")
             return LLMDecision(type="final", thought="已转人工。",
-                               content="这个问题我还没学过,已为您转接人工客服处理。")
+                               content="这个问题我还没见过,已为您转接人工客服处理。")
 
-        # 2) 涉及课程客观事实(价格/周期/大纲等)—— 查课程库
-        if _FACT_RE.search(question) and "course_search" not in done:
-            return _call("course_search", {"query": question},
-                         "问题涉及课程客观信息,检索课程库核对事实。")
+        # 2) 涉及汽车项目事实(价格/工期等)—— 查项目目录
+        if _FACT_RE.search(question) and "project_search" not in done:
+            return _call("project_search", {"query": question},
+                         "问题涉及项目客观信息,检索项目目录核对事实。")
 
         # 3) 需要用真实案例给客户信心 —— 查案例
-        if _CASE_RE.search(question) and "student_cases" not in done:
-            return _call("student_cases", {"query": question},
-                         "需要真实案例作答,检索案例库。")
+        if _CASE_RE.search(question) and "owner_cases" not in done:
+            return _call("owner_cases", {"query": question},
+                         "需要真实案例作答,检索车主案例。")
 
         # 4) 收尾:按召回到的策略样本 + 已查到的信息作答
         return LLMDecision(type="final", thought="按召回到的策略作答。",
@@ -92,16 +92,16 @@ class MockLLMProvider(LLMProvider):
 
 
 def _answer(pb: dict[str, Any], done: dict[str, Any]) -> str:
-    """把策略样本 + 课程信息 + 案例拼成回复(真实模型会语义精判并自然生成)。"""
+    """把策略样本 + 汽车项目信息 + 车主案例拼成回复(真实模型会语义精判并自然生成)。"""
     samples = pb.get("samples") or []
-    course = (done.get("course_search") or {}).get("course")
-    cases = (done.get("student_cases") or {}).get("cases")
+    project = (done.get("project_search") or {}).get("project")
+    cases = (done.get("owner_cases") or {}).get("cases")
 
     parts: list[str] = []
     if samples:
         parts.append(samples[0].get("answer", ""))
-    if course:
-        parts.append(f"(参考:{course['name']},{course.get('price', '')}、{course.get('duration', '')})")
+    if project:
+        parts.append(f"(参考:{project['name']},{project.get('price', '')}、{project.get('duration', '')})")
     if cases:
         c = cases[0]
         parts.append(f"比如{c['name']}({c['city']})——{c['outcome']}。")

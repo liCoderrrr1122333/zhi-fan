@@ -10,10 +10,10 @@ from .base import Tool
 from ...data.cases import all_cases
 
 
-class StudentCasesTool(Tool):
-    name = "student_cases"
-    description = ("按城市或客户背景(学历/基础/目标等)检索案例库,返回具体案例"
-                   "(姓名、城市、背景、结果)。当需要用真实案例给客户信心时调用。")
+class OwnerCasesTool(Tool):
+    name = "owner_cases"
+    description = ("按城市或车况(车型、年款、贴膜、改色、车衣)检索车主案例,返回具体案例"
+                   "(姓名、城市、车况、结果)。当需要用真实案例给客户信心时调用。")
 
     def run(self, query: str = "", **kwargs: Any) -> dict[str, Any]:
         q = (query or "").lower()

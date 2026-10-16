@@ -85,7 +85,7 @@
 
           <!-- 客户咨询输入 -->
           <div class="composer" id="ask-box">
-            <input id="input" type="text" placeholder="以客户身份提问,例如:这个课多少钱?" autocomplete="off" />
+            <input id="input" type="text" placeholder="以客户身份提问,例如:全车改色膜多少钱?" autocomplete="off" />
             <button id="send">发送</button>
             <button id="reset" class="ghost" title="清空当前会话上下文">重置</button>
           </div>
@@ -93,9 +93,9 @@
           <!-- 策略沉淀输入 -->
           <div class="teach-box" id="teach-box">
             <div class="teach-title">创建策略单元：输入模式、建议动作与判断依据</div>
-            <input id="t-question" type="text" placeholder="客户问题,例如:这个课多少钱?" autocomplete="off" />
-            <textarea id="t-answer" placeholder="建议回复或动作，例如：先了解基础和目标，再决定是否进入报价阶段…"></textarea>
-            <textarea id="t-note" placeholder="判断依据，例如：价格问题先确认意向，避免过早进入砍价…"></textarea>
+            <input id="t-question" type="text" placeholder="客户问题,例如:这台帕萨特改色膜多少钱?" autocomplete="off" />
+            <textarea id="t-answer" placeholder="建议回复，例如：先问车型和年款，再决定要不要对接顾问谈价…"></textarea>
+            <textarea id="t-note" placeholder="判断依据，例如：问价先确认车型，避免一上来报数字…"></textarea>
             <button id="teach-btn">保存策略</button>
 
             <div class="taught-wrap">
@@ -138,7 +138,7 @@
         <textarea id="directive" placeholder="加载中…"></textarea>
         <div class="settings-actions">
           <button id="save-directive" class="btn-ok">保存设定</button>
-          <span class="settings-hint">承载"简洁、绝不直接报价、先确认意向再对接班主任"这类全局策略。</span>
+          <span class="settings-hint">承载"简洁、绝不直接报价、先问清车型和年款再对接顾问"这类全局策略。</span>
         </div>
       </div>
 
@@ -159,6 +159,6 @@
     </section>
   </main>
 
-  <script src="/static/app.js?v=11"></script>
+  <script src="/static/app.js?v=15"></script>
 </body>
 </html>

@@ -16,30 +16,30 @@ class EvalCase:
 CASES: tuple[EvalCase, ...] = (
     EvalCase(
         "price",
-        "价格题",
-        "这个课程多少钱？",
-        "不报具体价格，先问背景或意向",
+        "改色问价",
+        "全车改色膜多少钱？",
+        "不报具体价格，先问车型或想改成什么样",
         "target",
     ),
     EvalCase(
-        "foundation",
-        "零基础题",
-        "我零基础能学吗？",
-        "不直接说可以就结束，会追问基础、目标或时间",
+        "fit",
+        "能不能贴",
+        "我这车是老款SUV，能贴改色膜吗？",
+        "不直接说可以就结束，会追问年款、漆面或想改的效果",
         "target",
     ),
     EvalCase(
-        "job",
-        "就业题",
-        "你们包就业吗？",
-        "不做包就业、百分之百这类承诺",
+        "promise",
+        "效果承诺",
+        "贴完膜能保证不起泡吗？",
+        "不承诺不起泡或不褪色，先问车型和漆面",
         "target",
     ),
     EvalCase(
         "catalog",
-        "课程题",
-        "有哪些课程？",
-        "去查课程资料再回答。这条不该被上面的纠偏弄坏",
+        "项目题",
+        "你们有哪些贴膜和改色？",
+        "去查汽车项目再回答。这条不该被上面的纠偏弄坏",
         "control",
     ),
 )
@@ -49,11 +49,11 @@ _MONEY = re.compile(
     r"\d[\d,，.]{1,}\s*(?:元|块钱|块)|"
     r"\d+\s*(?:万|千)\s*元"
 )
-_FOLLOW = re.compile(r"基础|目标|时间|多久|每天|小时|城市|在职|毕业")
-_HARD_PROMISE = re.compile(r"包就业|保证就业|保就业|百分百|百分之百|100\s*%")
-_HEDGE = re.compile(r"不承诺|不会承诺|不能承诺|不保证|不会保证|不会包|不能包|并不包")
-_STEER = re.compile(r"不承诺|不保证|支持|情况|城市|背景|真实|帮助")
-_COURSE_FACT = re.compile(r"课程|周|大纲|阶段|适合")
+_FOLLOW = re.compile(r"年款|漆|颜色|车型|效果|多久|时间|哪年")
+_HARD_PROMISE = re.compile(r"保证不起泡|保证不褪色|保证不掉色|百分百|百分之百|100\s*%")
+_HEDGE = re.compile(r"不承诺|不会承诺|不能承诺|不能保证|不保证|不会保证|不能包|并不包")
+_STEER = re.compile(r"不承诺|不保证|不能保证|车型|漆|年款|膜|质保|停放|什么车")
+_CATALOG = re.compile(r"贴膜|改色|膜|隔热|车衣")
 
 
 def case_by_id(case_id: str) -> EvalCase | None:
@@ -81,7 +81,7 @@ def _no_money(reply: str) -> bool:
 
 def _asks_background(reply: str) -> bool:
     text = reply or ""
-    return bool(re.search(r"[?？]", text) or re.search(r"了解|意向|基础|目标|预算|城市|想学", text))
+    return bool(re.search(r"[?？]", text) or re.search(r"车型|颜色|效果|预算|城市|年款|想改", text))
 
 
 def _follows_up(reply: str) -> bool:
@@ -91,7 +91,7 @@ def _follows_up(reply: str) -> bool:
 
 def _not_blanket_yes(reply: str) -> bool:
     text = reply or ""
-    says_yes = bool(re.search(r"可以|能学|没问题", text))
+    says_yes = bool(re.search(r"(?<!不)(?:可以|能贴|没问题)", text))
     asks = bool(re.search(r"[?？]", text))
     if says_yes and not asks:
         return False
@@ -114,23 +114,23 @@ def evaluate_case(case: EvalCase, reply: str, tools: list[str], handoff: bool) -
             _check("no_price", "没有报出具体价格", _no_money(reply)),
             _check("ask", "有在追问背景或意向", _asks_background(reply)),
         ]
-    elif case.id == "foundation":
+    elif case.id == "fit":
         checks = [
             _check("recall", "先召回了策略", recalled),
-            _check("follow", "追问了基础、目标或时间", _follows_up(reply)),
+            _check("follow", "追问了年款、漆面或想改的效果", _follows_up(reply)),
             _check("no_yes", "没有只说可以就结束", _not_blanket_yes(reply)),
         ]
-    elif case.id == "job":
+    elif case.id == "promise":
         checks = [
             _check("recall", "先召回了策略", recalled),
-            _check("promise", "没有做绝对就业承诺", _no_absolute_promise(reply)),
-            _check("steer", "把话转到支持范围或客户情况", bool(_STEER.search(reply or ""))),
+            _check("promise", "没有承诺不起泡或不褪色", _no_absolute_promise(reply)),
+            _check("steer", "把话转到车型、漆面或质保", bool(_STEER.search(reply or ""))),
         ]
     else:
         checks = [
             _check("recall", "先召回了策略", recalled),
-            _check("course", "调用了课程检索", "course_search" in tools and not handoff),
-            _check("mention", "回复里提到了课程", bool(_COURSE_FACT.search(reply or "")) and not handoff),
+            _check("catalog", "调用了汽车项目检索", "project_search" in tools and not handoff),
+            _check("mention", "回复里提到了贴膜或改色", bool(_CATALOG.search(reply or "")) and not handoff),
         ]
     return {
         "id": case.id,

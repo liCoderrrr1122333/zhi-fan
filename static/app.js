@@ -10,12 +10,23 @@ const del = (url) => api(url, { method: "DELETE" });
 
 const SESSION = "demo";
 const QUICK = [
-  "有哪些课程?",
-  "这个课多少钱?",
-  "我零基础能学吗?",
-  "太贵了,能便宜点吗?",
-  "学完能找到工作吗?",
+  "全车改色膜多少钱？",
+  "你们贴膜比外面便宜吗？",
+  "我这车是老款SUV，能贴改色膜吗？",
+  "贴完膜能保证不起泡吗？",
+  "你们有哪些贴膜和改色？",
 ];
+
+const TOOL_NAMES = {
+  project_search: "查汽车项目",
+  owner_cases: "查车主案例",
+  recall_playbook: "翻策略",
+  handoff: "转人工",
+};
+
+function toolLabel(name) {
+  return TOOL_NAMES[name] || name;
+}
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) =>
@@ -205,12 +216,12 @@ function renderTrace(trace) {
     if (s.type === "tool_result" && s.is_error) cls += " error";
     el.className = cls;
 
-    let inner = `<div class="k">第${s.step}步 · ${labels[s.type] || s.type}${s.tool ? " · " + s.tool : ""}</div>`;
+    let inner = `<div class="k">第${s.step}步 · ${labels[s.type] || s.type}${s.tool ? " · " + toolLabel(s.tool) : ""}</div>`;
 
     // ① LLM 调用:展示可用工具 + 可折叠的完整上下文(喂给模型的 messages)
     if (s.type === "llm_call") {
       if (s.available_tools) {
-        inner += `<div class="sub">可用工具:${escapeHtml(s.available_tools.join(", "))}</div>`;
+        inner += `<div class="sub">可用工具:${escapeHtml(s.available_tools.map(toolLabel).join("、"))}</div>`;
       }
       const msgs = s.messages || [];
       const lines = msgs.map((m) => escapeHtml(fmtMessage(m))).join("\n");
@@ -220,7 +231,7 @@ function renderTrace(trace) {
     // ② LLM 决策:展示模型这一步决定"调工具"还是"直接回复"
     if (s.type === "llm_response") {
       if (s.decision === "tool_call" && s.tool_calls && s.tool_calls.length) {
-        const names = s.tool_calls.map((c) => c.name).join(", ");
+        const names = s.tool_calls.map((c) => toolLabel(c.name)).join("、");
         inner += `<div class="sub">决策:调用工具 → ${escapeHtml(names)}${s.tool_calls.length > 1 ? "(并行)" : ""}</div>`;
         inner += `<pre>tool_calls ${escapeHtml(JSON.stringify(s.tool_calls))}</pre>`;
       } else {
@@ -476,7 +487,7 @@ function evalCard(item) {
     ? `<div class="eval-reply">${escapeHtml(item.reply)}</div>`
     : `<div class="eval-expect">还没跑。</div>`;
   const tools = (item.tools || []).length
-    ? `<div class="eval-tools">调用了 ${escapeHtml(item.tools.join("、"))}</div>`
+    ? `<div class="eval-tools">调用了 ${escapeHtml(item.tools.map(toolLabel).join("、"))}</div>`
     : "";
   return `<article class="eval-card ${delta}">
     <div class="eval-card-top">
@@ -492,7 +503,11 @@ function evalCard(item) {
 }
 
 function paintEval(cases, byId) {
-  $("#eval-grid").innerHTML = cases.map((c) => evalCard(byId[c.id] || c)).join("");
+  $("#eval-grid").innerHTML = cases.map((c) => {
+    const prev = byId[c.id];
+    const same = prev && prev.question === c.question;
+    return evalCard(same ? prev : c);
+  }).join("");
 }
 
 async function loadEval() {
