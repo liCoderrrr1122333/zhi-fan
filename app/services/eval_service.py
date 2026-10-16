@@ -44,29 +44,35 @@ def _row_to_run(row: dict) -> dict[str, Any]:
     }
 
 
-def _done_runs(limit: int = 2) -> list[dict]:
+def _done_runs() -> list[dict]:
     with cursor() as cur:
-        cur.execute(
-            "SELECT * FROM eval_runs WHERE status='done' ORDER BY id DESC LIMIT ?",
-            (limit,),
-        )
+        cur.execute("SELECT * FROM eval_runs WHERE status='done' ORDER BY id DESC")
         rows = [dict(r) for r in cur.fetchall()]
     return [_row_to_run(r) for r in rows]
 
 
-def _previous_done(before_id: int | None = None) -> dict | None:
-    with cursor() as cur:
-        if before_id is None:
-            cur.execute(
-                "SELECT * FROM eval_runs WHERE status='done' ORDER BY id DESC LIMIT 1"
-            )
-        else:
-            cur.execute(
-                "SELECT * FROM eval_runs WHERE status='done' AND id<? ORDER BY id DESC LIMIT 1",
-                (before_id,),
-            )
-        row = cur.fetchone()
-    return _row_to_run(dict(row)) if row else None
+def _has_model_error(results: list[dict]) -> bool:
+    return any(item.get("error") for item in results or [])
+
+
+def _scored_before(runs: list[dict], before_id: int | None) -> dict | None:
+    """上一轮只取模型答完的评测。没答上的轮次不拿来比变好或退步。"""
+    for run in runs:
+        if before_id is not None and run["id"] >= before_id:
+            continue
+        if not _has_model_error(run.get("results") or []):
+            return run
+    return None
+
+
+def _skipped_unscored(runs: list[dict], before_id: int | None, current_unscored: bool) -> bool:
+    if current_unscored:
+        return False
+    for run in runs:
+        if before_id is not None and run["id"] >= before_id:
+            continue
+        return _has_model_error(run.get("results") or [])
+    return False
 
 
 def delta_of(passed: bool, previous_passed: bool | None) -> str:
@@ -82,6 +88,8 @@ def delta_of(passed: bool, previous_passed: bool | None) -> str:
 
 
 def _attach_delta(results: list[dict], previous: dict | None) -> list[dict]:
+    if _has_model_error(results):
+        return [dict(item, delta="") for item in results]
     prev_map = {item["id"]: item for item in (previous or {}).get("results") or []}
     out = []
     for item in results:
@@ -132,16 +140,21 @@ def _provider_note(provider: str) -> str:
     return "这次用的是真实模型。同一句话可能有浮动，看的是规则过没过。"
 
 
+_SKIPPED_NOTE = "上一轮模型没答上，不拿来对比。"
+
+
 def overview() -> dict[str, Any]:
-    done = _done_runs(2)
-    latest = done[0] if done else None
-    previous = done[1] if len(done) > 1 else None
+    done = _done_runs()
+    latest = dict(done[0]) if done else None
+    unscored = bool(latest and _has_model_error(latest.get("results") or []))
+    previous = None if latest is None or unscored else _scored_before(done, latest["id"])
     if latest:
-        latest = dict(latest)
+        latest["unscored"] = unscored
         latest["results"] = _attach_delta(latest["results"], previous)
     headline = "四道固定题。先跑一遍看当前策略，改完再跑，变好和被带坏都会标出来。"
     if latest:
         headline = build_headline(latest["results"], previous, latest["passed"], latest["total"])
+    skipped = _skipped_unscored(done, None if latest is None else latest["id"], unscored)
     return {
         "cases": public_cases(),
         "provider": config.LLM_PROVIDER,
@@ -149,6 +162,7 @@ def overview() -> dict[str, Any]:
         "latest": latest,
         "previous": previous,
         "headline": headline,
+        "skipped_note": _SKIPPED_NOTE if skipped else "",
     }
 
 
@@ -242,10 +256,18 @@ def run_case(run_id: int, case_id: str) -> dict[str, Any]:
             (json.dumps(results, ensure_ascii=False), passed, len(CASES), status, run_id),
         )
 
-    previous = _previous_done(before_id=run_id)
+    done = _done_runs()
+    unscored = _has_model_error(results)
+    previous = None if unscored else _scored_before(done, run_id)
     judged = dict(judged)
-    prev_item = next((item for item in (previous or {}).get("results") or [] if item.get("id") == case.id), None)
-    judged["delta"] = delta_of(bool(judged.get("passed")), None if prev_item is None else bool(prev_item.get("passed")))
+    if unscored:
+        judged["delta"] = ""
+    else:
+        prev_item = next((item for item in (previous or {}).get("results") or [] if item.get("id") == case.id), None)
+        judged["delta"] = delta_of(
+            bool(judged.get("passed")),
+            None if prev_item is None else bool(prev_item.get("passed")),
+        )
     headline = None
     if finished:
         headline = build_headline(results, previous, passed, len(CASES))
@@ -256,6 +278,8 @@ def run_case(run_id: int, case_id: str) -> dict[str, Any]:
         "passed": passed,
         "total": len(CASES),
         "headline": headline,
+        "unscored": unscored,
+        "skipped_note": "" if unscored or not _skipped_unscored(done, run_id, unscored) else _SKIPPED_NOTE,
         "sample_count": row["sample_count"],
         "summary_excerpt": row["summary_excerpt"] or "",
         "provider": row["provider"],

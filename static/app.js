@@ -516,10 +516,12 @@ async function loadEval() {
   const dirty = sessionStorage.getItem("eval-dirty") === "1";
   $("#eval-headline").textContent = (dirty ? "策略刚更新过。" : "") + (data.headline || "");
   const latest = data.latest;
-  const meta = latest
-    ? `上次结果 ${latest.passed}/${latest.total}，当时策略 ${latest.sample_count} 条。`
-    : "";
-  $("#eval-note").textContent = [data.provider_note, meta].filter(Boolean).join(" ");
+  const meta = !latest
+    ? ""
+    : latest.unscored
+      ? "上一轮模型没答上，不拿来当成绩。"
+      : `上次结果 ${latest.passed}/${latest.total}，当时策略 ${latest.sample_count} 条。`;
+  $("#eval-note").textContent = [data.provider_note, meta, data.skipped_note].filter(Boolean).join(" ");
   const byId = {};
   ((latest && latest.results) || []).forEach((r) => { byId[r.id] = r; });
   paintEval(cases, byId);
@@ -556,11 +558,18 @@ async function runEval() {
     const holder = document.createElement("div");
     holder.innerHTML = evalCard(last.result);
     $("#eval-grid").children[i].replaceWith(holder.firstElementChild);
+    if (last.unscored) {
+      document.querySelectorAll("#eval-grid .eval-delta").forEach((el) => {
+        el.textContent = "";
+        el.className = "eval-delta";
+      });
+    }
   }
   if (last && last.headline) $("#eval-headline").textContent = last.headline;
   if (last && last.finished) {
     const excerpt = last.summary_excerpt ? `总纲：${last.summary_excerpt}` : "";
-    $("#eval-note").textContent = [started.provider_note, `这次对照 ${last.sample_count} 条策略。`, excerpt].filter(Boolean).join(" ");
+    const scoreNote = last.unscored ? "这一轮模型没答上，不拿来当成绩。" : `这次对照 ${last.sample_count} 条策略。`;
+    $("#eval-note").textContent = [started.provider_note, scoreNote, excerpt, last.skipped_note].filter(Boolean).join(" ");
   }
   btn.disabled = false;
   btn.textContent = "按当前策略再跑一遍";
