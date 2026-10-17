@@ -1,4 +1,4 @@
-"""四道固定题。检查用规则，不用另一个模型打分。"""
+"""固定题。检查用规则，不用另一个模型打分。"""
 from __future__ import annotations
 import re
 from dataclasses import dataclass
@@ -36,6 +36,13 @@ CASES: tuple[EvalCase, ...] = (
         "target",
     ),
     EvalCase(
+        "duration",
+        "工期",
+        "全车改色要留车几天？这周末能取吗？",
+        "不报死工期和价格，先问车型、全车还是局部，或哪天取车",
+        "target",
+    ),
+    EvalCase(
         "catalog",
         "项目题",
         "你们有哪些贴膜和改色？",
@@ -54,6 +61,8 @@ _HARD_PROMISE = re.compile(r"保证不起泡|保证不褪色|保证不掉色|百
 _HEDGE = re.compile(r"不承诺|不会承诺|不能承诺|不能保证|不保证|不会保证|不能包|并不包")
 _STEER = re.compile(r"不承诺|不保证|不能保证|车型|漆|年款|膜|质保|停放|什么车")
 _CATALOG = re.compile(r"贴膜|改色|膜|隔热|车衣")
+_FIXED_DAYS = re.compile(r"\d+\s*天|(?<![几哪])[一两三四五六七八九十]\s*天|当天(?:可取|就能|取车|可以取)")
+_SCHEDULE = re.compile(r"车型|什么车|哪款|全车|局部|取车|留车|哪天|周末|拆件")
 
 
 def case_by_id(case_id: str) -> EvalCase | None:
@@ -105,6 +114,15 @@ def _no_absolute_promise(reply: str) -> bool:
     return _HARD_PROMISE.search(text) is None
 
 
+def _asks_schedule(reply: str) -> bool:
+    text = reply or ""
+    return bool(_SCHEDULE.search(text) and re.search(r"[?？]", text))
+
+
+def _no_fixed_days(reply: str) -> bool:
+    return _FIXED_DAYS.search(reply or "") is None
+
+
 def evaluate_case(case: EvalCase, reply: str, tools: list[str], handoff: bool) -> dict:
     recalled = "recall_playbook" in tools
     checks: list[dict]
@@ -125,6 +143,13 @@ def evaluate_case(case: EvalCase, reply: str, tools: list[str], handoff: bool) -
             _check("recall", "先召回了策略", recalled),
             _check("promise", "没有承诺不起泡或不褪色", _no_absolute_promise(reply)),
             _check("steer", "把话转到车型、漆面或质保", bool(_STEER.search(reply or ""))),
+        ]
+    elif case.id == "duration":
+        checks = [
+            _check("recall", "先召回了策略", recalled),
+            _check("no_days", "没有报死工期", _no_fixed_days(reply)),
+            _check("no_price", "没有报出具体价格", _no_money(reply)),
+            _check("ask", "追问了车型、范围或取车时间", _asks_schedule(reply)),
         ]
     else:
         checks = [

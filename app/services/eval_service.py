@@ -96,8 +96,18 @@ def _attach_delta(results: list[dict], previous: dict | None) -> list[dict]:
         before = prev_map.get(item["id"])
         copied = dict(item)
         copied["delta"] = delta_of(bool(item.get("passed")), None if before is None else bool(before.get("passed")))
+        if copied["delta"] in ("improved", "regressed"):
+            copied["previous_reply"] = _earlier_reply(before, copied)
         out.append(copied)
     return out
+
+
+def _earlier_reply(before: dict | None, current: dict) -> str:
+    if not before or before.get("error"):
+        return ""
+    if before.get("question") and current.get("question") and before["question"] != current["question"]:
+        return ""
+    return (before.get("reply") or "").strip()
 
 
 def build_headline(results: list[dict], previous: dict | None, passed: int, total: int) -> str:
@@ -130,7 +140,7 @@ def build_headline(results: list[dict], previous: dict | None, passed: int, tota
     if held_control:
         parts.append("、".join(held_control) + "仍然通过。")
     if not improved and not regressed:
-        parts.append("和上一轮一样，这四题的通过情况没有变。")
+        parts.append("和上一轮一样，这几题的通过情况没有变。")
     return "".join(parts)
 
 
@@ -151,7 +161,7 @@ def overview() -> dict[str, Any]:
     if latest:
         latest["unscored"] = unscored
         latest["results"] = _attach_delta(latest["results"], previous)
-    headline = "四道固定题。先跑一遍看当前策略，改完再跑，变好和被带坏都会标出来。"
+    headline = "固定题。先跑一遍看当前策略，改完再跑，变好和被带坏都会标出来。"
     if latest:
         headline = build_headline(latest["results"], previous, latest["passed"], latest["total"])
     skipped = _skipped_unscored(done, None if latest is None else latest["id"], unscored)
@@ -268,6 +278,8 @@ def run_case(run_id: int, case_id: str) -> dict[str, Any]:
             bool(judged.get("passed")),
             None if prev_item is None else bool(prev_item.get("passed")),
         )
+        if judged["delta"] in ("improved", "regressed"):
+            judged["previous_reply"] = _earlier_reply(prev_item, judged)
     headline = None
     if finished:
         headline = build_headline(results, previous, passed, len(CASES))

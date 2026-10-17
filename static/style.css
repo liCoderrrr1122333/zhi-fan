@@ -287,6 +287,8 @@ main { padding:24px 32px 32px; max-width:1600px; margin:0 auto; }
 .eval-q { font-size:14px; font-weight:650; }
 .eval-expect, .eval-reply, .eval-tools { font-size:12px; line-height:1.5; color:#64748b; margin-top:4px; }
 .eval-reply { color:#1e293b; }
+.eval-before span, .eval-reply span { display:block; font-size:11px; font-weight:700; color:#94a3b8; margin-bottom:2px; }
+.eval-before { margin-top:8px; padding:6px 8px; border-radius:8px; background:rgba(255,255,255,.72); color:#64748b; font-size:12px; line-height:1.5; }
 .eval-checks { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 0; padding:0; list-style:none; }
 .eval-checks li { font-size:12px; padding:3px 8px; border-radius:999px; background:#f1f5f9; color:#64748b; }
 .eval-checks li.ok { background:#d1fae5; color:#065f46; }

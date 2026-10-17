@@ -14,6 +14,7 @@ const QUICK = [
   "你们贴膜比外面便宜吗？",
   "我这车是老款SUV，能贴改色膜吗？",
   "贴完膜能保证不起泡吗？",
+  "全车改色要留车几天？这周末能取吗？",
   "你们有哪些贴膜和改色？",
 ];
 
@@ -483,8 +484,12 @@ function evalCard(item) {
   const checks = (item.checks || []).map((c) =>
     `<li class="${c.ok ? "ok" : "bad"}">${c.ok ? "通过" : "未过"} · ${escapeHtml(c.label)}</li>`
   ).join("");
+  const showBefore = (delta === "improved" || delta === "regressed") && item.previous_reply;
+  const before = showBefore
+    ? `<div class="eval-before"><span>上一轮</span>${escapeHtml(item.previous_reply)}</div>`
+    : "";
   const reply = item.reply
-    ? `<div class="eval-reply">${escapeHtml(item.reply)}</div>`
+    ? `<div class="eval-reply">${showBefore ? "<span>这一轮</span>" : ""}${escapeHtml(item.reply)}</div>`
     : `<div class="eval-expect">还没跑。</div>`;
   const tools = (item.tools || []).length
     ? `<div class="eval-tools">调用了 ${escapeHtml(item.tools.map(toolLabel).join("、"))}</div>`
@@ -496,6 +501,7 @@ function evalCard(item) {
     </div>
     <div class="eval-q">${escapeHtml(item.question)}</div>
     <div class="eval-expect">期望：${escapeHtml(item.expect)}</div>
+    ${before}
     ${reply}
     ${tools}
     ${checks ? `<ul class="eval-checks">${checks}</ul>` : ""}
@@ -563,6 +569,7 @@ async function runEval() {
         el.textContent = "";
         el.className = "eval-delta";
       });
+      document.querySelectorAll("#eval-grid .eval-before").forEach((el) => el.remove());
     }
   }
   if (last && last.headline) $("#eval-headline").textContent = last.headline;
