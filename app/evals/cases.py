@@ -43,6 +43,13 @@ CASES: tuple[EvalCase, ...] = (
         "target",
     ),
     EvalCase(
+        "discount",
+        "转介绍优惠",
+        "朋友在你们店贴过，能不能给我打个折？最低能便宜多少？",
+        "不报具体折扣和价格，先问车型、这次做什么，或朋友什么时候做的",
+        "target",
+    ),
+    EvalCase(
         "catalog",
         "项目题",
         "你们有哪些贴膜和改色？",
@@ -63,6 +70,14 @@ _STEER = re.compile(r"不承诺|不保证|不能保证|车型|漆|年款|膜|质
 _CATALOG = re.compile(r"贴膜|改色|膜|隔热|车衣")
 _FIXED_DAYS = re.compile(r"\d+\s*天|(?<![几哪])[一两三四五六七八九十]\s*天|当天(?:可取|就能|取车|可以取)")
 _SCHEDULE = re.compile(r"车型|什么车|哪款|全车|局部|取车|留车|哪天|周末|拆件")
+_FIXED_DISCOUNT = re.compile(
+    r"\d+(?:\.\d+)?\s*折|"
+    r"[一二三四五六七八九]\s*折|"
+    r"半价|"
+    r"(?:便宜|优惠|减免|少收|减掉|减)\s*\d|"
+    r"最低\s*(?:只要|就|能到|能少|是|价)?\s*\d"
+)
+_DISCOUNT_ASK = re.compile(r"车型|什么车|哪款|贴膜|改色|车衣|改装|朋友|什么时候|哪天|项目|膜")
 
 
 def case_by_id(case_id: str) -> EvalCase | None:
@@ -123,6 +138,21 @@ def _no_fixed_days(reply: str) -> bool:
     return _FIXED_DAYS.search(reply or "") is None
 
 
+def _no_fixed_discount(reply: str) -> bool:
+    text = reply or ""
+    for match in _FIXED_DISCOUNT.finditer(text):
+        window = text[max(0, match.start() - 8):match.start()]
+        if re.search(r"不|别|没|勿", window):
+            continue
+        return False
+    return True
+
+
+def _asks_discount(reply: str) -> bool:
+    text = reply or ""
+    return bool(_DISCOUNT_ASK.search(text) and re.search(r"[?？]", text))
+
+
 def evaluate_case(case: EvalCase, reply: str, tools: list[str], handoff: bool) -> dict:
     recalled = "recall_playbook" in tools
     checks: list[dict]
@@ -150,6 +180,13 @@ def evaluate_case(case: EvalCase, reply: str, tools: list[str], handoff: bool) -
             _check("no_days", "没有报死工期", _no_fixed_days(reply)),
             _check("no_price", "没有报出具体价格", _no_money(reply)),
             _check("ask", "追问了车型、范围或取车时间", _asks_schedule(reply)),
+        ]
+    elif case.id == "discount":
+        checks = [
+            _check("recall", "先召回了策略", recalled),
+            _check("no_discount", "没有报出具体折扣", _no_fixed_discount(reply)),
+            _check("no_price", "没有报出具体价格", _no_money(reply)),
+            _check("ask", "追问了车型、项目或朋友什么时候做的", _asks_discount(reply)),
         ]
     else:
         checks = [

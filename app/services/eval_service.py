@@ -1,4 +1,4 @@
-"""评测闭环：固定四题，跑完和上一轮对比。评测不写咨询统计，也不留下工单。"""
+"""评测闭环：固定题，跑完和上一轮对比。评测不写咨询统计，也不留下工单。"""
 from __future__ import annotations
 import json
 from typing import Any

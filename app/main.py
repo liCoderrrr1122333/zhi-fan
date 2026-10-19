@@ -127,7 +127,7 @@ def get_system_prompt() -> dict:
     return {"prompt": chat_service.effective_system_prompt()}
 
 
-# ---------- 评测：固定四题，和上一轮对比 ----------
+# ---------- 评测：固定题，和上一轮对比 ----------
 
 @app.get("/api/evals")
 def get_evals() -> dict:
